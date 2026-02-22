@@ -1,0 +1,74 @@
+# ─── Tusker docker-compose ─────────────────────────────────────────────────────
+#
+# Phase 1: single binary — the `api` service embeds both the HTTP server and
+# the background job worker (goroutines inside the same process).
+#
+# Phase 2 (worker scale-out): to run workers as separate containers, add a
+# MODE env var (e.g. MODE=api / MODE=worker) and branch in main.go accordingly.
+# You can then replicate the `worker` service independently:
+#
+#   worker:
+#     build: .
+#     environment:
+#       MODE: worker
+#       DATABASE_URL: ...
+#     deploy:
+#       replicas: 4        # scale horizontally without touching the API
+#     depends_on:
+#       migrate:
+#         condition: service_completed_successfully
+#
+# ───────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tusker
+      POSTGRES_PASSWORD: tusker
+      POSTGRES_DB: tusker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tusker -d tusker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    volumes:
+      - ./db/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://tusker:tusker@postgres:5432/tusker?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgres://tusker:tusker@postgres:5432/tusker?sslmode=disable
+      # Generate with: openssl rand -hex 32
+      ROOT_ENCRYPTION_KEY: ${ROOT_ENCRYPTION_KEY:?ROOT_ENCRYPTION_KEY is required}
+      TUSKER_BASE_URL: ${TUSKER_BASE_URL:-http://localhost:8080}
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:

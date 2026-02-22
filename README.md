@@ -15,6 +15,11 @@ Tired of setting up the same OAuth flow, email provider, or SMS integration for 
 
 ## API
 
+**Health**
+```
+GET    /health                           Returns 200 {"status":"ok"} — used by Docker/load-balancer health checks
+```
+
 **OAuth**
 ```
 POST   /tenants                          Provision a tenant, get API key (shown once)
@@ -133,6 +138,22 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 - Per-tenant envelope encryption (AES-256-GCM): client secrets and tokens are encrypted at rest
 - API keys are never stored — only a SHA-256 hash is kept
 - Tenant credentials are fully isolated
+
+## Running with Docker
+
+The quickest way to get the full stack (Postgres + migrations + server) running locally:
+
+```bash
+# Set a root encryption key (required)
+echo "ROOT_ENCRYPTION_KEY=$(openssl rand -hex 32)" > .env
+
+docker compose up --build
+```
+
+`docker compose up` runs three services in order:
+1. **postgres** — Postgres 16
+2. **migrate** — applies all DB migrations
+3. **api** — the Tusker server (API + background worker) on port 8080
 
 ## Running locally
 
