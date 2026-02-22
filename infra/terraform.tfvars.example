@@ -1,0 +1,6 @@
+do_token     = "dop_v1_your_digitalocean_api_token"
+ssh_key_name = "your-ssh-key-name"
+droplet_name = "tusker"
+region       = "nyc3"
+droplet_size = "s-1vcpu-1gb"
+environment  = "production"
