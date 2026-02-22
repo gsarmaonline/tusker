@@ -2,7 +2,9 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -55,4 +57,36 @@ func (g *GoogleProvider) Refresh(ctx context.Context, refreshToken string) (*Tok
 		RefreshToken: t.RefreshToken,
 		Expiry:       t.Expiry,
 	}, nil
+}
+
+func (g *GoogleProvider) UserInfo(ctx context.Context, accessToken string) (*UserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("google userinfo request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("google userinfo returned %d", resp.StatusCode)
+	}
+
+	var body struct {
+		ID    string `json:"id"`
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("google userinfo decode: %w", err)
+	}
+	if body.ID == "" {
+		return nil, fmt.Errorf("google userinfo: empty user ID")
+	}
+
+	return &UserInfo{ID: body.ID, Email: body.Email}, nil
 }
