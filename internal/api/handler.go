@@ -343,6 +343,8 @@ func (h *Handler) buildProvider(ctx context.Context, t *store.Tenant, providerNa
 	switch providerName {
 	case "google":
 		return oauth.NewGoogleProvider(cfg.ClientID, string(clientSecret), callbackURL), nil
+	case "slack":
+		return oauth.NewSlackProvider(cfg.ClientID, string(clientSecret), callbackURL), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", providerName)
 	}
