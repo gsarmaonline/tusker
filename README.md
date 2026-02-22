@@ -186,6 +186,7 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 
 **OAuth**
 - Google
+- Slack
 
 **Email**
 - SMTP
