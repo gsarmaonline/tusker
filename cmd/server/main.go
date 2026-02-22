@@ -10,6 +10,7 @@ import (
 
 	"github.com/gsarma/tusker/internal/api"
 	"github.com/gsarma/tusker/internal/crypto"
+	"github.com/gsarma/tusker/internal/store"
 	"github.com/gsarma/tusker/internal/worker"
 )
 
@@ -40,7 +41,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	w := worker.New(pool, h, 5)
+	w := worker.New(store.New(pool), h, 5)
 	go w.Start(ctx)
 
 	port := os.Getenv("PORT")

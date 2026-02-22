@@ -20,7 +20,7 @@ import (
 )
 
 type Handler struct {
-	queries   *store.Queries
+	queries   store.Querier
 	tenantSvc *tenant.Service
 	enc       *crypto.Encryptor
 }
@@ -407,13 +407,15 @@ func (h *Handler) SendEmail(c *gin.Context) {
 	}
 
 	if c.Query("sync") != "true" {
-		payloadJSON, _ := json.Marshal(EmailJobPayload{
+		payloadJSON, _ := json.Marshal(email.JobPayload{
 			Provider: providerName,
-			To:       body.To,
-			From:     body.From,
-			Subject:  body.Subject,
-			Body:     body.Body,
-			HTML:     body.HTML,
+			Message: email.Message{
+				To:      body.To,
+				From:    body.From,
+				Subject: body.Subject,
+				Body:    body.Body,
+				HTML:    body.HTML,
+			},
 		})
 		job, err := h.queries.CreateJob(c.Request.Context(), store.CreateJobParams{
 			TenantID: t.ID,

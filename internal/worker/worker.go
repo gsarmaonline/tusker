@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gsarma/tusker/internal/store"
 )
@@ -22,14 +21,14 @@ type JobExecutor interface {
 
 // Worker polls the database for pending jobs and executes them concurrently.
 type Worker struct {
-	store       *store.Queries
+	store       store.Querier
 	executor    JobExecutor
 	concurrency int
 }
 
-func New(pool *pgxpool.Pool, executor JobExecutor, concurrency int) *Worker {
+func New(q store.Querier, executor JobExecutor, concurrency int) *Worker {
 	return &Worker{
-		store:       store.New(pool),
+		store:       q,
 		executor:    executor,
 		concurrency: concurrency,
 	}

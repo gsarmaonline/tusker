@@ -72,7 +72,7 @@ func (h *Handler) SendSMS(c *gin.Context) {
 	}
 
 	if c.Query("sync") != "true" {
-		payloadJSON, _ := json.Marshal(SMSJobPayload{
+		payloadJSON, _ := json.Marshal(sms.JobPayload{
 			Provider: providerName,
 			From:     body.From,
 			To:       body.To,
