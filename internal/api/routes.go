@@ -28,6 +28,9 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
 		authed.GET("/oauth/:provider/authorize", h.Authorize)
 		authed.GET("/oauth/:provider/token", h.GetToken)
 		authed.DELETE("/oauth/:provider/token", h.DeleteToken)
+
+		authed.POST("/sms/:provider/config", h.SetSMSProviderConfig)
+		authed.POST("/sms/:provider/send", h.SendSMS)
 	}
 
 	// Callback is called by the provider — no tenant auth header, tenant from state param

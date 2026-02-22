@@ -15,6 +15,7 @@ Tired of setting up the same OAuth flow, email provider, or SMS integration for 
 
 ## API
 
+**OAuth**
 ```
 POST   /tenants                          Provision a tenant, get API key (shown once)
 POST   /oauth/:provider/config           Set provider credentials (client_id, client_secret)
@@ -22,6 +23,12 @@ GET    /oauth/:provider/authorize        Start OAuth flow — redirect your user
 GET    /oauth/:provider/callback         Provider redirects here (Tusker-owned, register this with your provider)
 GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refreshed if expired)
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
+```
+
+**SMS**
+```
+POST   /sms/:provider/config             Set provider credentials (account_sid, auth_token)
+POST   /sms/:provider/send              Send an SMS message (from, to, body)
 ```
 
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:
@@ -79,7 +86,11 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 | `PORT` | HTTP port (default `8080`) |
 ## Supported providers
 
+**OAuth**
 - Google
+
+**SMS**
+- Twilio
 
 ## Security
 
