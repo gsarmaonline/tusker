@@ -10,6 +10,7 @@ import (
 
 	"github.com/gsarma/tusker/internal/api"
 	"github.com/gsarma/tusker/internal/crypto"
+	"github.com/gsarma/tusker/internal/worker"
 )
 
 func main() {
@@ -35,7 +36,12 @@ func main() {
 	}
 
 	router := gin.Default()
-	api.RegisterRoutes(router, pool, enc)
+	h := api.RegisterRoutes(router, pool, enc)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	w := worker.New(pool, h, 5)
+	go w.Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {

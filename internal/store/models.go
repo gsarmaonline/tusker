@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type EmailProviderConfig struct {
@@ -16,6 +17,21 @@ type EmailProviderConfig struct {
 	Provider        string    `json:"provider"`
 	EncryptedConfig []byte    `json:"encrypted_config"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+type Job struct {
+	ID          uuid.UUID   `json:"id"`
+	TenantID    uuid.UUID   `json:"tenant_id"`
+	JobType     string      `json:"job_type"`
+	Payload     []byte      `json:"payload"`
+	Status      string      `json:"status"`
+	Attempt     int32       `json:"attempt"`
+	MaxAttempts int32       `json:"max_attempts"`
+	Error       pgtype.Text `json:"error"`
+	RunAt       time.Time   `json:"run_at"`
+	StartedAt   *time.Time  `json:"started_at"`
+	CompletedAt *time.Time  `json:"completed_at"`
+	CreatedAt   time.Time   `json:"created_at"`
 }
 
 type OauthProviderConfig struct {

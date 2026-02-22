@@ -25,7 +25,9 @@ GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refre
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
 
 POST   /email/:provider/config           Set email provider credentials (provider-specific JSON)
-POST   /email/:provider/send             Send an email via the configured provider
+POST   /email/:provider/send             Queue an email (async, returns 202 + job_id); add ?sync=true to send immediately
+
+GET    /jobs/:id                         Poll the status of a queued job (pending|running|completed|failed)
 ```
 
 **Email config bodies by provider:**
@@ -48,7 +50,7 @@ Send request (`/email/:provider/send`):
 **SMS**
 ```
 POST   /sms/:provider/config             Set provider credentials (account_sid, auth_token)
-POST   /sms/:provider/send              Send an SMS message (from, to, body)
+POST   /sms/:provider/send              Queue an SMS (async, returns 202 + job_id); add ?sync=true to send immediately
 ```
 
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:

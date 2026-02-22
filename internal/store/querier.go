@@ -11,13 +11,17 @@ import (
 )
 
 type Querier interface {
+	ClaimNextJob(ctx context.Context) (Job, error)
+	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
 	DeleteOAuthToken(ctx context.Context, arg DeleteOAuthTokenParams) error
 	GetEmailProviderConfig(ctx context.Context, arg GetEmailProviderConfigParams) (EmailProviderConfig, error)
+	GetJob(ctx context.Context, arg GetJobParams) (Job, error)
 	GetOAuthToken(ctx context.Context, arg GetOAuthTokenParams) (OauthToken, error)
 	GetProviderConfig(ctx context.Context, arg GetProviderConfigParams) (OauthProviderConfig, error)
 	GetTenantByAPIKeyHash(ctx context.Context, apiKeyHash string) (Tenant, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
+	UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) (Job, error)
 	UpsertEmailProviderConfig(ctx context.Context, arg UpsertEmailProviderConfigParams) (EmailProviderConfig, error)
 	UpsertOAuthToken(ctx context.Context, arg UpsertOAuthTokenParams) (OauthToken, error)
 	UpsertProviderConfig(ctx context.Context, arg UpsertProviderConfigParams) (OauthProviderConfig, error)
