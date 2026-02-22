@@ -137,6 +137,12 @@ func (h *Handler) Callback(c *gin.Context) {
 		return
 	}
 
+	userInfo, err := p.UserInfo(ctx, token.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch user info"})
+		return
+	}
+
 	dataKey, err := h.tenantSvc.DataKey(&t)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "encryption error"})
@@ -163,11 +169,10 @@ func (h *Handler) Callback(c *gin.Context) {
 		expiresAt = &token.Expiry
 	}
 
-	// Use a placeholder user ID until we add a userinfo fetch step
 	_, err = h.queries.UpsertOAuthToken(ctx, store.UpsertOAuthTokenParams{
 		TenantID:              t.ID,
 		Provider:              providerName,
-		UserID:                "default",
+		UserID:                userInfo.ID,
 		EncryptedAccessToken:  encAccess,
 		EncryptedRefreshToken: encRefresh,
 		ExpiresAt:             expiresAt,
@@ -177,7 +182,8 @@ func (h *Handler) Callback(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusFound, state.RedirectURI)
+	redirectURL := state.RedirectURI + "?user_id=" + userInfo.ID
+	c.Redirect(http.StatusFound, redirectURL)
 }
 
 // GetToken returns the decrypted access token for a provider/user.
