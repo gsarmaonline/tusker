@@ -9,7 +9,7 @@ import (
 	"github.com/gsarma/tusker/internal/tenant"
 )
 
-func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
+func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) *Handler {
 	tenantSvc := tenant.NewService(db, enc)
 	queries := store.New(db)
 	h := &Handler{
@@ -17,6 +17,7 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
 		tenantSvc: tenantSvc,
 		enc:       enc,
 	}
+	h.registerExecutors()
 
 	// Tenant provisioning (would be admin-gated in production)
 	r.POST("/tenants", h.CreateTenant)
@@ -34,7 +35,9 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
 		authed.POST("/sms/:provider/config", h.SetSMSProviderConfig)
 		authed.POST("/sms/:provider/send", h.SendSMS)
 
-		authed.POST("/email/templates", h.UpsertEmailTemplate)
+		authed.GET("/jobs/:id", h.GetJob)
+		
+    authed.POST("/email/templates", h.UpsertEmailTemplate)
 		authed.GET("/email/templates", h.ListEmailTemplates)
 		authed.DELETE("/email/templates/:name", h.DeleteEmailTemplate)
 		authed.POST("/email/:provider/send-template", h.SendEmailWithTemplate)
@@ -42,4 +45,6 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
 
 	// Callback is called by the provider — no tenant auth header, tenant from state param
 	r.GET("/oauth/:provider/callback", h.Callback)
+
+	return h
 }

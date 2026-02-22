@@ -24,8 +24,10 @@ GET    /oauth/:provider/callback         Provider redirects here (Tusker-owned, 
 GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refreshed if expired)
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
 
+GET    /jobs/:id      Poll the status of a queued job (pending|running|completed|failed)
+
 POST   /email/:provider/config           Set email provider credentials (provider-specific JSON)
-POST   /email/:provider/send             Send an email via the configured provider
+POST   /email/:provider/send             Queue an email (async, returns 202 + job_id); add ?sync=true to send immediately
 POST   /email/templates                  Upsert a named email template
 GET    /email/templates                  List templates (custom + built-in defaults)
 DELETE /email/templates/:name            Delete a custom template (reverts to built-in default if one exists)
@@ -59,7 +61,7 @@ Built-in default templates (can be overridden per tenant): `welcome`, `login_ale
 **SMS**
 ```
 POST   /sms/:provider/config             Set provider credentials (account_sid, auth_token)
-POST   /sms/:provider/send              Send an SMS message (from, to, body)
+POST   /sms/:provider/send              Queue an SMS (async, returns 202 + job_id); add ?sync=true to send immediately
 ```
 
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:

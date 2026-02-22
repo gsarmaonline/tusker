@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -55,7 +56,7 @@ func (h *Handler) SetSMSProviderConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// SendSMS sends an SMS message via the configured provider.
+// SendSMS queues an SMS job (async by default) or sends immediately with ?sync=true.
 func (h *Handler) SendSMS(c *gin.Context) {
 	t := tenant.FromContext(c)
 	providerName := c.Param("provider")
@@ -70,6 +71,27 @@ func (h *Handler) SendSMS(c *gin.Context) {
 		return
 	}
 
+	if c.Query("sync") != "true" {
+		payloadJSON, _ := json.Marshal(sms.JobPayload{
+			Provider: providerName,
+			From:     body.From,
+			To:       body.To,
+			Body:     body.Body,
+		})
+		job, err := h.queries.CreateJob(c.Request.Context(), store.CreateJobParams{
+			TenantID: t.ID,
+			JobType:  "sms.send",
+			Payload:  payloadJSON,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to queue job"})
+			return
+		}
+		c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "status": "queued"})
+		return
+	}
+
+	// Sync path: send immediately.
 	ctx := c.Request.Context()
 
 	p, err := h.buildSMSProvider(ctx, t, providerName)

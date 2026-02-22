@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/gsarma/tusker/internal/crypto"
 	"github.com/gsarma/tusker/internal/email"
@@ -19,9 +20,10 @@ import (
 )
 
 type Handler struct {
-	queries   *store.Queries
+	queries   store.Querier
 	tenantSvc *tenant.Service
 	enc       *crypto.Encryptor
+	executors map[string]Executor
 }
 
 // CreateTenant provisions a new tenant and returns the API key (shown once).
@@ -388,7 +390,7 @@ func (h *Handler) SetEmailProviderConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// SendEmail sends an email via the tenant's configured provider.
+// SendEmail queues an email job (async by default) or sends immediately with ?sync=true.
 func (h *Handler) SendEmail(c *gin.Context) {
 	t := tenant.FromContext(c)
 	providerName := c.Param("provider")
@@ -405,6 +407,31 @@ func (h *Handler) SendEmail(c *gin.Context) {
 		return
 	}
 
+	if c.Query("sync") != "true" {
+		payloadJSON, _ := json.Marshal(email.JobPayload{
+			Provider: providerName,
+			Message: email.Message{
+				To:      body.To,
+				From:    body.From,
+				Subject: body.Subject,
+				Body:    body.Body,
+				HTML:    body.HTML,
+			},
+		})
+		job, err := h.queries.CreateJob(c.Request.Context(), store.CreateJobParams{
+			TenantID: t.ID,
+			JobType:  "email.send",
+			Payload:  payloadJSON,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to queue job"})
+			return
+		}
+		c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "status": "queued"})
+		return
+	}
+
+	// Sync path: send immediately.
 	p, err := h.buildEmailProvider(c.Request.Context(), t, providerName)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -424,6 +451,25 @@ func (h *Handler) SendEmail(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "sent"})
+}
+
+// GetJob returns the status of a background job scoped to the current tenant.
+func (h *Handler) GetJob(c *gin.Context) {
+	t := tenant.FromContext(c)
+	jobID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job id"})
+		return
+	}
+	job, err := h.queries.GetJob(c.Request.Context(), store.GetJobParams{
+		ID:       jobID,
+		TenantID: t.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		return
+	}
+	c.JSON(http.StatusOK, job)
 }
 
 // buildEmailProvider loads the tenant's email provider credentials and constructs the provider.
