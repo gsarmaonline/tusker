@@ -29,6 +29,8 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) {
 		authed.GET("/oauth/:provider/token", h.GetToken)
 		authed.DELETE("/oauth/:provider/token", h.DeleteToken)
 
+		authed.POST("/email/:provider/config", h.SetEmailProviderConfig)
+		authed.POST("/email/:provider/send", h.SendEmail)
 		authed.POST("/sms/:provider/config", h.SetSMSProviderConfig)
 		authed.POST("/sms/:provider/send", h.SendSMS)
 	}
