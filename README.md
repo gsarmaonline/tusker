@@ -69,6 +69,20 @@ POST   /sms/:provider/config             Set provider credentials (account_sid, 
 POST   /sms/:provider/send              Queue an SMS (async, returns 202 + job_id); add ?sync=true to send immediately
 ```
 
+**Code execution (Judge0)**
+```
+POST   /code/:provider/config            Optional: override Judge0 URL and set auth token per tenant
+POST   /code/:provider/execute           Submit code for execution (async, returns 202 + job_id); add ?sync=true to run immediately
+GET    /code/executions/:job_id          Fetch stdout/stderr/status after async job completes
+```
+
+Execute request (`/code/judge0/execute`):
+```json
+{ "source_code": "print('hello')", "language_id": 71, "stdin": "" }
+```
+
+`language_id` follows [Judge0 language IDs](https://github.com/judge0/judge0/blob/master/docs/api/languages.md) (e.g. 71 = Python 3, 62 = Java, 54 = C++17).
+
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:
 ```
 Authorization: Bearer <api_key>
@@ -133,6 +147,9 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 **SMS**
 - Twilio
 
+**Code execution**
+- Judge0 CE (self-hosted via Docker)
+
 ## Security
 
 - Per-tenant envelope encryption (AES-256-GCM): client secrets and tokens are encrypted at rest
@@ -150,10 +167,16 @@ echo "ROOT_ENCRYPTION_KEY=$(openssl rand -hex 32)" > .env
 docker compose up --build
 ```
 
-`docker compose up` runs three services in order:
-1. **postgres** — Postgres 16
+`docker compose up` runs the following services in order:
+1. **postgres** — Postgres 16 (Tusker database)
 2. **migrate** — applies all DB migrations
-3. **api** — the Tusker server (API + background worker) on port 8080
+3. **redis** — Redis 7 (Judge0 job queue)
+4. **judge0-db** — Postgres 16 (Judge0's dedicated database)
+5. **judge0-server** — Judge0 CE API on port 2358
+6. **judge0-workers** — Judge0 worker processes
+7. **api** — the Tusker server (API + background worker) on port 8080
+
+Judge0 requires `privileged: true` for its sandbox. Configuration is in `judge0.conf` (change passwords before deploying to production).
 
 ## Running locally
 

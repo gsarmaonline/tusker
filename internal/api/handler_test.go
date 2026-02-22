@@ -81,6 +81,30 @@ func (s *stubQuerier) UpsertOAuthToken(ctx context.Context, arg store.UpsertOAut
 func (s *stubQuerier) UpsertProviderConfig(ctx context.Context, arg store.UpsertProviderConfigParams) (store.OauthProviderConfig, error) {
 	return store.OauthProviderConfig{}, nil
 }
+func (s *stubQuerier) DeleteEmailTemplate(ctx context.Context, arg store.DeleteEmailTemplateParams) error {
+	return nil
+}
+func (s *stubQuerier) GetEmailTemplate(ctx context.Context, arg store.GetEmailTemplateParams) (store.EmailTemplate, error) {
+	return store.EmailTemplate{}, nil
+}
+func (s *stubQuerier) ListEmailTemplates(ctx context.Context, tenantID uuid.UUID) ([]store.EmailTemplate, error) {
+	return nil, nil
+}
+func (s *stubQuerier) UpsertEmailTemplate(ctx context.Context, arg store.UpsertEmailTemplateParams) (store.EmailTemplate, error) {
+	return store.EmailTemplate{}, nil
+}
+func (s *stubQuerier) GetCodeProviderConfig(ctx context.Context, arg store.GetCodeProviderConfigParams) (store.CodeProviderConfig, error) {
+	return store.CodeProviderConfig{}, nil
+}
+func (s *stubQuerier) UpsertCodeProviderConfig(ctx context.Context, arg store.UpsertCodeProviderConfigParams) (store.CodeProviderConfig, error) {
+	return store.CodeProviderConfig{}, nil
+}
+func (s *stubQuerier) InsertCodeExecution(ctx context.Context, arg store.InsertCodeExecutionParams) (store.CodeExecution, error) {
+	return store.CodeExecution{}, nil
+}
+func (s *stubQuerier) GetCodeExecution(ctx context.Context, arg store.GetCodeExecutionParams) (store.CodeExecution, error) {
+	return store.CodeExecution{}, nil
+}
 
 // Compile-time interface check.
 var _ store.Querier = (*stubQuerier)(nil)
@@ -321,6 +345,7 @@ func TestExecutor_JobTypes(t *testing.T) {
 	}{
 		{&emailExecutor{h}, "email.send"},
 		{&smsExecutor{h}, "sms.send"},
+		{&codeExecutor{h}, "code.execute"},
 	}
 	for _, tc := range cases {
 		if got := tc.exec.JobType(); got != tc.wantKey {
@@ -333,7 +358,7 @@ func TestRegisterExecutors_PopulatesAllTypes(t *testing.T) {
 	h := &Handler{queries: &stubQuerier{}}
 	h.registerExecutors()
 
-	for _, jobType := range []string{"email.send", "sms.send"} {
+	for _, jobType := range []string{"email.send", "sms.send", "code.execute"} {
 		if _, ok := h.executors[jobType]; !ok {
 			t.Errorf("executor for job type %q was not registered", jobType)
 		}
@@ -351,7 +376,7 @@ func TestExecuteJob_UnknownJobType_ReturnsError(t *testing.T) {
 		executors: map[string]Executor{}, // empty registry
 	}
 
-	err := h.ExecuteJob(context.Background(), tenantID, "push.send", json.RawMessage(`{}`))
+	err := h.ExecuteJob(context.Background(), uuid.New(), tenantID, "push.send", json.RawMessage(`{}`))
 	if err == nil {
 		t.Fatal("expected an error for unknown job type")
 	}

@@ -70,15 +70,39 @@ func (s *stubQuerier) UpsertOAuthToken(ctx context.Context, arg store.UpsertOAut
 func (s *stubQuerier) UpsertProviderConfig(ctx context.Context, arg store.UpsertProviderConfigParams) (store.OauthProviderConfig, error) {
 	return store.OauthProviderConfig{}, nil
 }
+func (s *stubQuerier) DeleteEmailTemplate(ctx context.Context, arg store.DeleteEmailTemplateParams) error {
+	return nil
+}
+func (s *stubQuerier) GetEmailTemplate(ctx context.Context, arg store.GetEmailTemplateParams) (store.EmailTemplate, error) {
+	return store.EmailTemplate{}, nil
+}
+func (s *stubQuerier) ListEmailTemplates(ctx context.Context, tenantID uuid.UUID) ([]store.EmailTemplate, error) {
+	return nil, nil
+}
+func (s *stubQuerier) UpsertEmailTemplate(ctx context.Context, arg store.UpsertEmailTemplateParams) (store.EmailTemplate, error) {
+	return store.EmailTemplate{}, nil
+}
+func (s *stubQuerier) GetCodeProviderConfig(ctx context.Context, arg store.GetCodeProviderConfigParams) (store.CodeProviderConfig, error) {
+	return store.CodeProviderConfig{}, nil
+}
+func (s *stubQuerier) UpsertCodeProviderConfig(ctx context.Context, arg store.UpsertCodeProviderConfigParams) (store.CodeProviderConfig, error) {
+	return store.CodeProviderConfig{}, nil
+}
+func (s *stubQuerier) InsertCodeExecution(ctx context.Context, arg store.InsertCodeExecutionParams) (store.CodeExecution, error) {
+	return store.CodeExecution{}, nil
+}
+func (s *stubQuerier) GetCodeExecution(ctx context.Context, arg store.GetCodeExecutionParams) (store.CodeExecution, error) {
+	return store.CodeExecution{}, nil
+}
 
 // stubExecutor implements worker.JobExecutor for tests.
 type stubExecutor struct {
-	executeJobFn func(ctx context.Context, tenantID uuid.UUID, jobType string, payload json.RawMessage) error
+	executeJobFn func(ctx context.Context, jobID uuid.UUID, tenantID uuid.UUID, jobType string, payload json.RawMessage) error
 }
 
-func (s *stubExecutor) ExecuteJob(ctx context.Context, tenantID uuid.UUID, jobType string, payload json.RawMessage) error {
+func (s *stubExecutor) ExecuteJob(ctx context.Context, jobID uuid.UUID, tenantID uuid.UUID, jobType string, payload json.RawMessage) error {
 	if s.executeJobFn != nil {
-		return s.executeJobFn(ctx, tenantID, jobType, payload)
+		return s.executeJobFn(ctx, jobID, tenantID, jobType, payload)
 	}
 	return nil
 }
@@ -184,7 +208,7 @@ func TestWorker_JobFailsWithRetry(t *testing.T) {
 		},
 	}
 	exec := &stubExecutor{
-		executeJobFn: func(_ context.Context, _ uuid.UUID, _ string, _ json.RawMessage) error {
+		executeJobFn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string, _ json.RawMessage) error {
 			return execErr
 		},
 	}
@@ -227,7 +251,7 @@ func TestWorker_JobExhaustsRetries(t *testing.T) {
 		},
 	}
 	exec := &stubExecutor{
-		executeJobFn: func(_ context.Context, _ uuid.UUID, _ string, _ json.RawMessage) error {
+		executeJobFn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string, _ json.RawMessage) error {
 			return execErr
 		},
 	}
@@ -274,7 +298,7 @@ func TestWorker_BackoffGrowsWithAttempt(t *testing.T) {
 				},
 			}
 			exec := &stubExecutor{
-				executeJobFn: func(_ context.Context, _ uuid.UUID, _ string, _ json.RawMessage) error {
+				executeJobFn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string, _ json.RawMessage) error {
 					return errors.New("fail")
 				},
 			}

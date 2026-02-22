@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/gsarma/tusker/internal/code"
 	"github.com/gsarma/tusker/internal/email"
 	"github.com/gsarma/tusker/internal/sms"
 	"github.com/gsarma/tusker/internal/store"
@@ -16,7 +17,7 @@ import (
 // Implement this interface and add an instance to registerExecutors to support a new async provider.
 type Executor interface {
 	JobType() string
-	Execute(ctx context.Context, t *store.Tenant, payload json.RawMessage) error
+	Execute(ctx context.Context, jobID uuid.UUID, t *store.Tenant, payload json.RawMessage) error
 }
 
 // registerExecutors builds the handler's job-type dispatch table.
@@ -25,6 +26,7 @@ func (h *Handler) registerExecutors() {
 	execs := []Executor{
 		&emailExecutor{h},
 		&smsExecutor{h},
+		&codeExecutor{h},
 	}
 	h.executors = make(map[string]Executor, len(execs))
 	for _, e := range execs {
@@ -33,7 +35,7 @@ func (h *Handler) registerExecutors() {
 }
 
 // ExecuteJob implements worker.JobExecutor by dispatching to the registered Executor for the job type.
-func (h *Handler) ExecuteJob(ctx context.Context, tenantID uuid.UUID, jobType string, payload json.RawMessage) error {
+func (h *Handler) ExecuteJob(ctx context.Context, jobID uuid.UUID, tenantID uuid.UUID, jobType string, payload json.RawMessage) error {
 	t, err := h.queries.GetTenantByID(ctx, tenantID)
 	if err != nil {
 		return fmt.Errorf("tenant not found: %w", err)
@@ -42,7 +44,7 @@ func (h *Handler) ExecuteJob(ctx context.Context, tenantID uuid.UUID, jobType st
 	if !ok {
 		return fmt.Errorf("unknown job type: %s", jobType)
 	}
-	return exec.Execute(ctx, &t, payload)
+	return exec.Execute(ctx, jobID, &t, payload)
 }
 
 // emailExecutor handles email.send jobs.
@@ -50,7 +52,7 @@ type emailExecutor struct{ h *Handler }
 
 func (e *emailExecutor) JobType() string { return "email.send" }
 
-func (e *emailExecutor) Execute(ctx context.Context, t *store.Tenant, raw json.RawMessage) error {
+func (e *emailExecutor) Execute(ctx context.Context, _ uuid.UUID, t *store.Tenant, raw json.RawMessage) error {
 	var p email.JobPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return fmt.Errorf("invalid email job payload: %w", err)
@@ -67,7 +69,7 @@ type smsExecutor struct{ h *Handler }
 
 func (e *smsExecutor) JobType() string { return "sms.send" }
 
-func (e *smsExecutor) Execute(ctx context.Context, t *store.Tenant, raw json.RawMessage) error {
+func (e *smsExecutor) Execute(ctx context.Context, _ uuid.UUID, t *store.Tenant, raw json.RawMessage) error {
 	var p sms.JobPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return fmt.Errorf("invalid sms job payload: %w", err)
@@ -77,5 +79,36 @@ func (e *smsExecutor) Execute(ctx context.Context, t *store.Tenant, raw json.Raw
 		return err
 	}
 	_, err = provider.Send(ctx, p.From, p.To, p.Body)
+	return err
+}
+
+// codeExecutor handles code.execute jobs.
+type codeExecutor struct{ h *Handler }
+
+func (e *codeExecutor) JobType() string { return "code.execute" }
+
+func (e *codeExecutor) Execute(ctx context.Context, jobID uuid.UUID, t *store.Tenant, raw json.RawMessage) error {
+	var p code.JobPayload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return fmt.Errorf("invalid code job payload: %w", err)
+	}
+	provider, err := e.h.buildCodeProvider(ctx, t, p.Provider)
+	if err != nil {
+		return err
+	}
+	result, err := provider.Execute(ctx, p.SourceCode, p.LanguageID, p.Stdin)
+	if err != nil {
+		return err
+	}
+	_, err = e.h.queries.InsertCodeExecution(ctx, store.InsertCodeExecutionParams{
+		JobID:         jobID,
+		TenantID:      t.ID,
+		Stdout:        result.Stdout,
+		Stderr:        result.Stderr,
+		CompileOutput: result.CompileOutput,
+		Status:        result.Status,
+		ExecTime:      result.Time,
+		Memory:        int32(result.Memory),
+	})
 	return err
 }

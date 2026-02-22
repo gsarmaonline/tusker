@@ -36,6 +36,9 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) *Han
 		authed.POST("/email/:provider/send", h.SendEmail)
 		authed.POST("/sms/:provider/config", h.SetSMSProviderConfig)
 		authed.POST("/sms/:provider/send", h.SendSMS)
+		authed.POST("/code/:provider/config", h.SetCodeProviderConfig)
+		authed.POST("/code/:provider/execute", h.ExecuteCode)
+		authed.GET("/code/executions/:job_id", h.GetCodeExecution)
 
 		authed.GET("/jobs/:id", h.GetJob)
 		

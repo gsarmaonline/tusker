@@ -16,7 +16,7 @@ import (
 
 // JobExecutor executes a single job by type and payload.
 type JobExecutor interface {
-	ExecuteJob(ctx context.Context, tenantID uuid.UUID, jobType string, payload json.RawMessage) error
+	ExecuteJob(ctx context.Context, jobID uuid.UUID, tenantID uuid.UUID, jobType string, payload json.RawMessage) error
 }
 
 // Worker polls the database for pending jobs and executes them concurrently.
@@ -66,7 +66,7 @@ func (w *Worker) processNext(ctx context.Context) {
 		return
 	}
 
-	execErr := w.executor.ExecuteJob(ctx, job.TenantID, job.JobType, json.RawMessage(job.Payload))
+	execErr := w.executor.ExecuteJob(ctx, job.ID, job.TenantID, job.JobType, json.RawMessage(job.Payload))
 
 	now := time.Now()
 	if execErr == nil {
