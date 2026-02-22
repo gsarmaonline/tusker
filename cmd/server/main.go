@@ -42,14 +42,21 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	w := worker.New(store.New(pool), h, 5)
-	go w.Start(ctx)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	switch os.Getenv("MODE") {
+	case "worker":
+		log.Println("starting in worker-only mode")
+		w.Start(ctx) // blocks until ctx cancelled
+	default:
+		// Default: run both API server and worker in the same process.
+		go w.Start(ctx)
 
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("server error: %v", err)
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		if err := router.Run(":" + port); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
 	}
 }
