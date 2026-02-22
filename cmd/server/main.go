@@ -47,6 +47,16 @@ func main() {
 	case "worker":
 		log.Println("starting in worker-only mode")
 		w.Start(ctx) // blocks until ctx cancelled
+	case "api":
+		// API-only: no embedded worker goroutines; scale workers separately.
+		log.Println("starting in api-only mode")
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		if err := router.Run(":" + port); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
 	default:
 		// Default: run both API server and worker in the same process.
 		go w.Start(ctx)

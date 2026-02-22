@@ -1,11 +1,11 @@
 # ─── Tusker docker-compose ─────────────────────────────────────────────────────
 #
-# Default: `api` runs HTTP server + 5 worker goroutines in one process (MODE unset).
+# Default (MODE unset): `api` runs HTTP server + 5 embedded worker goroutines.
 #
-# Worker scale-out: set MODE=worker on the `worker` service and scale it
-# independently without touching the API replicas:
+# Worker scale-out: activate the `workers` profile and set MODE=api so the API
+# does not spawn its own goroutines, then scale worker containers independently:
 #
-#   docker compose up --scale worker=4
+#   MODE=api docker compose --profile workers up --scale worker=4
 #
 # ClaimNextJob uses FOR UPDATE SKIP LOCKED so concurrent worker containers
 # will not double-process jobs.
@@ -56,7 +56,10 @@ services:
       ROOT_ENCRYPTION_KEY: ${ROOT_ENCRYPTION_KEY:?ROOT_ENCRYPTION_KEY is required}
       TUSKER_BASE_URL: ${TUSKER_BASE_URL:-http://localhost:8080}
       PORT: "8080"
-      # MODE unset → runs API server + embedded worker goroutines (default)
+      # Set MODE=api when running dedicated worker containers so the API does
+      # not also spawn embedded worker goroutines.
+      # Leave unset (or omit) for the all-in-one default behaviour.
+      MODE: ${MODE:-}
     depends_on:
       postgres:
         condition: service_healthy
