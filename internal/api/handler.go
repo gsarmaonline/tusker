@@ -210,6 +210,15 @@ func (h *Handler) GetToken(c *gin.Context) {
 		return
 	}
 
+	// Auto-refresh if the token is expired or expires within 30 seconds.
+	if row.ExpiresAt != nil && time.Until(*row.ExpiresAt) < 30*time.Second {
+		row, err = h.refreshAndStore(ctx, t, providerName, userID, row, dataKey)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "token refresh failed"})
+			return
+		}
+	}
+
 	accessToken, err := crypto.DecryptWithDataKey(dataKey, row.EncryptedAccessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "decryption error"})
@@ -226,6 +235,62 @@ func (h *Handler) GetToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// refreshAndStore uses the stored refresh token to obtain a new access token,
+// encrypts and persists it, and returns the updated row.
+func (h *Handler) refreshAndStore(ctx context.Context, t *store.Tenant, providerName, userID string, row store.OauthToken, dataKey []byte) (store.OauthToken, error) {
+	if len(row.EncryptedRefreshToken) == 0 {
+		return row, fmt.Errorf("no refresh token available")
+	}
+
+	refreshToken, err := crypto.DecryptWithDataKey(dataKey, row.EncryptedRefreshToken)
+	if err != nil {
+		return row, fmt.Errorf("decrypt refresh token: %w", err)
+	}
+
+	p, err := h.buildProvider(ctx, t, providerName)
+	if err != nil {
+		return row, err
+	}
+
+	newToken, err := p.Refresh(ctx, string(refreshToken))
+	if err != nil {
+		return row, fmt.Errorf("provider refresh: %w", err)
+	}
+
+	encAccess, err := crypto.EncryptWithDataKey(dataKey, []byte(newToken.AccessToken))
+	if err != nil {
+		return row, fmt.Errorf("encrypt access token: %w", err)
+	}
+
+	// Keep existing refresh token if provider didn't return a new one.
+	encRefresh := row.EncryptedRefreshToken
+	if newToken.RefreshToken != "" {
+		encRefresh, err = crypto.EncryptWithDataKey(dataKey, []byte(newToken.RefreshToken))
+		if err != nil {
+			return row, fmt.Errorf("encrypt refresh token: %w", err)
+		}
+	}
+
+	var expiresAt *time.Time
+	if !newToken.Expiry.IsZero() {
+		expiresAt = &newToken.Expiry
+	}
+
+	updated, err := h.queries.UpsertOAuthToken(ctx, store.UpsertOAuthTokenParams{
+		TenantID:              t.ID,
+		Provider:              providerName,
+		UserID:                userID,
+		EncryptedAccessToken:  encAccess,
+		EncryptedRefreshToken: encRefresh,
+		ExpiresAt:             expiresAt,
+	})
+	if err != nil {
+		return row, fmt.Errorf("store refreshed token: %w", err)
+	}
+
+	return updated, nil
 }
 
 // DeleteToken revokes a stored OAuth token.

@@ -20,7 +20,7 @@ POST   /tenants                          Provision a tenant, get API key (shown 
 POST   /oauth/:provider/config           Set provider credentials (client_id, client_secret)
 GET    /oauth/:provider/authorize        Start OAuth flow — redirect your users here
 GET    /oauth/:provider/callback         Provider redirects here (Tusker-owned, register this with your provider)
-GET    /oauth/:provider/token?user_id=   Fetch a stored access token
+GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refreshed if expired)
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
 ```
 
@@ -100,4 +100,9 @@ go run ./cmd/server
 Run migrations before first start:
 ```bash
 migrate -path db/migrations -database "$DATABASE_URL" up
+```
+
+For local end-to-end testing of the OAuth flow, run the test client in a second terminal:
+```bash
+go run ./cmd/testclient   # listens on :9999, catches the post-auth redirect
 ```
