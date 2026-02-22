@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/gsarma/tusker/internal/crypto"
+	"github.com/gsarma/tusker/internal/email"
 	"github.com/gsarma/tusker/internal/oauth"
 	"github.com/gsarma/tusker/internal/store"
 	"github.com/gsarma/tusker/internal/tenant"
@@ -340,5 +343,123 @@ func (h *Handler) buildProvider(ctx context.Context, t *store.Tenant, providerNa
 		return oauth.NewGoogleProvider(cfg.ClientID, string(clientSecret), callbackURL), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", providerName)
+	}
+}
+
+// SetEmailProviderConfig stores a tenant's email provider credentials.
+// The request body is the provider-specific JSON config (e.g. SMTP host/port/credentials
+// or a SendGrid API key), which is encrypted with the tenant's data key before storage.
+func (h *Handler) SetEmailProviderConfig(c *gin.Context) {
+	t := tenant.FromContext(c)
+	providerName := c.Param("provider")
+
+	configJSON, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
+		return
+	}
+	if !json.Valid(configJSON) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
+		return
+	}
+
+	dataKey, err := h.tenantSvc.DataKey(t)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "encryption error"})
+		return
+	}
+
+	encConfig, err := crypto.EncryptWithDataKey(dataKey, configJSON)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "encryption error"})
+		return
+	}
+
+	_, err = h.queries.UpsertEmailProviderConfig(c.Request.Context(), store.UpsertEmailProviderConfigParams{
+		TenantID:        t.ID,
+		Provider:        providerName,
+		EncryptedConfig: encConfig,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save email config"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// SendEmail sends an email via the tenant's configured provider.
+func (h *Handler) SendEmail(c *gin.Context) {
+	t := tenant.FromContext(c)
+	providerName := c.Param("provider")
+
+	var body struct {
+		To      []string `json:"to" binding:"required"`
+		From    string   `json:"from" binding:"required"`
+		Subject string   `json:"subject" binding:"required"`
+		Body    string   `json:"body" binding:"required"`
+		HTML    bool     `json:"html"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	p, err := h.buildEmailProvider(c.Request.Context(), t, providerName)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	msg := email.Message{
+		To:      body.To,
+		From:    body.From,
+		Subject: body.Subject,
+		Body:    body.Body,
+		HTML:    body.HTML,
+	}
+	if err := p.Send(c.Request.Context(), msg); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to send email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "sent"})
+}
+
+// buildEmailProvider loads the tenant's email provider credentials and constructs the provider.
+func (h *Handler) buildEmailProvider(ctx context.Context, t *store.Tenant, providerName string) (email.Provider, error) {
+	cfg, err := h.queries.GetEmailProviderConfig(ctx, store.GetEmailProviderConfigParams{
+		TenantID: t.ID,
+		Provider: providerName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("email provider config not found for %s", providerName)
+	}
+
+	dataKey, err := h.tenantSvc.DataKey(t)
+	if err != nil {
+		return nil, fmt.Errorf("encryption error")
+	}
+
+	configJSON, err := crypto.DecryptWithDataKey(dataKey, cfg.EncryptedConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt email config")
+	}
+
+	switch providerName {
+	case "smtp":
+		var smtpCfg email.SMTPConfig
+		if err := json.Unmarshal(configJSON, &smtpCfg); err != nil {
+			return nil, fmt.Errorf("invalid smtp config")
+		}
+		return email.NewSMTPProvider(smtpCfg), nil
+	case "sendgrid":
+		var sgCfg email.SendGridConfig
+		if err := json.Unmarshal(configJSON, &sgCfg); err != nil {
+			return nil, fmt.Errorf("invalid sendgrid config")
+		}
+		return email.NewSendGridProvider(sgCfg), nil
+	default:
+		return nil, fmt.Errorf("unsupported email provider: %s", providerName)
 	}
 }

@@ -17,11 +17,31 @@ Tired of setting up the same OAuth flow, email provider, or SMS integration for 
 
 ```
 POST   /tenants                          Provision a tenant, get API key (shown once)
-POST   /oauth/:provider/config           Set provider credentials (client_id, client_secret)
+POST   /oauth/:provider/config           Set OAuth provider credentials (client_id, client_secret)
 GET    /oauth/:provider/authorize        Start OAuth flow — redirect your users here
 GET    /oauth/:provider/callback         Provider redirects here (Tusker-owned, register this with your provider)
 GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refreshed if expired)
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
+
+POST   /email/:provider/config           Set email provider credentials (provider-specific JSON)
+POST   /email/:provider/send             Send an email via the configured provider
+```
+
+**Email config bodies by provider:**
+
+SMTP (`/email/smtp/config`):
+```json
+{ "host": "smtp.example.com", "port": 587, "username": "user@example.com", "password": "secret" }
+```
+
+SendGrid (`/email/sendgrid/config`):
+```json
+{ "api_key": "SG.xxxx" }
+```
+
+Send request (`/email/:provider/send`):
+```json
+{ "to": ["alice@example.com"], "from": "noreply@myapp.com", "subject": "Hello", "body": "Hi there!", "html": false }
 ```
 
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:
@@ -79,7 +99,12 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 | `PORT` | HTTP port (default `8080`) |
 ## Supported providers
 
+**OAuth**
 - Google
+
+**Email**
+- SMTP
+- SendGrid
 
 ## Security
 

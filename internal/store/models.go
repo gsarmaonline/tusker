@@ -10,6 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type EmailProviderConfig struct {
+	ID              uuid.UUID `json:"id"`
+	TenantID        uuid.UUID `json:"tenant_id"`
+	Provider        string    `json:"provider"`
+	EncryptedConfig []byte    `json:"encrypted_config"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 type OauthProviderConfig struct {
 	ID                    uuid.UUID `json:"id"`
 	TenantID              uuid.UUID `json:"tenant_id"`
