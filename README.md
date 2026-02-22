@@ -77,6 +77,43 @@ Authorization: Bearer <api_key>
 Tusker will also monitor your API usage and send you regular updates on how the apps are using
 the APIs. You can setup alerts for that.
 
+## Go SDK
+
+A first-party Go SDK lives in the `sdk/` directory as a standalone module (`github.com/gsarma/tusker/sdk`). It covers all Tusker API endpoints with no external dependencies.
+
+**Install**
+
+```bash
+go get github.com/gsarma/tusker/sdk
+```
+
+**Quick start**
+
+```go
+import tusker "github.com/gsarma/tusker/sdk"
+
+// Provision a tenant (one-time, no API key needed)
+provisioner := tusker.NewProvisioner("https://api.tusker.io")
+tenant, _ := provisioner.CreateTenant(ctx)
+// Store tenant.APIKey securely — shown only once
+
+// Authenticated client
+client := tusker.New("https://api.tusker.io", tenant.APIKey)
+
+// Configure SMTP and send an email (async)
+client.Email.SetConfig(ctx, "smtp", tusker.SMTPConfig{Host: "smtp.example.com", Port: 587, Username: "u", Password: "p"})
+resp, _ := client.Email.Send(ctx, "smtp", tusker.SendEmailRequest{
+    To: []string{"alice@example.com"}, From: "noreply@myapp.com",
+    Subject: "Hello", Body: "Hi there!",
+}, nil)
+
+// Poll job status
+job, _ := client.Jobs.Get(ctx, resp.JobID)
+fmt.Println(job.Status) // pending | running | completed | failed
+```
+
+See `sdk/example_test.go` for OAuth, SMS, and template examples.
+
 ## Deploying to DigitalOcean
 
 The `infra/` directory contains Terraform config and shell scripts to provision and deploy Tusker on a DigitalOcean droplet.
