@@ -10,6 +10,8 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) *Handler {
+	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
+
 	tenantSvc := tenant.NewService(db, enc)
 	queries := store.New(db)
 	h := &Handler{

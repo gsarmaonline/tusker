@@ -1,0 +1,25 @@
+.git
+.github
+.claude
+
+# Terraform infra (not needed in image)
+infra/
+
+# Compiled output
+bin/
+server
+
+# Test artifacts
+*.test
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Local env
+.env
+go.work
+go.work.sum
+
+# Test client (only the server binary is built)
+cmd/testclient/
