@@ -6,6 +6,15 @@ Tired of setting up the same OAuth flow, email provider, or SMS integration for 
 
 **Bottom line: Once you integrate with an external API, you never have to do it again.**
 
+## Table of Contents
+
+- [How it works](#how-it-works)
+- [API](#api)
+- [Deploying to DigitalOcean](#deploying-to-digitalocean)
+- [Supported providers](#supported-providers)
+- [Security](#security)
+- [Running locally](#running-locally)
+
 ## How it works
 
 1. Create a tenant and get an API key
