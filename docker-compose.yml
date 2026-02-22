@@ -51,6 +51,58 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  # ── Judge0 dependencies ────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "judge0redis"]
+
+  judge0-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0secret
+      POSTGRES_DB: judge0
+    volumes:
+      - judge0_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge0 -d judge0"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Judge0 CE API server — exposes the submissions REST API on port 2358.
+  # Requires privileged mode for the sandbox (isolate).
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    ports:
+      - "2358:2358"
+    privileged: true
+    restart: unless-stopped
+    depends_on:
+      judge0-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Judge0 CE workers — consume submissions from the Redis queue.
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    restart: unless-stopped
+    depends_on:
+      judge0-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── Tusker API ─────────────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -64,11 +116,17 @@ services:
       ROOT_ENCRYPTION_KEY: ${ROOT_ENCRYPTION_KEY:?ROOT_ENCRYPTION_KEY is required}
       TUSKER_BASE_URL: ${TUSKER_BASE_URL:-http://localhost:8080}
       PORT: "8080"
+      # Judge0 base URL — reachable within the Docker network.
+      # Tenants can override this per-provider via POST /code/judge0/config.
+      JUDGE0_URL: ${JUDGE0_URL:-http://judge0-server:2358}
     depends_on:
       postgres:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      judge0-server:
+        condition: service_started
 
 volumes:
   postgres_data:
+  judge0_db_data:

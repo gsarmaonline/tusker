@@ -11,12 +11,44 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CodeExecution struct {
+	ID            uuid.UUID `json:"id"`
+	JobID         uuid.UUID `json:"job_id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	Stdout        string    `json:"stdout"`
+	Stderr        string    `json:"stderr"`
+	CompileOutput string    `json:"compile_output"`
+	Status        string    `json:"status"`
+	ExecTime      string    `json:"exec_time"`
+	Memory        int32     `json:"memory"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type CodeProviderConfig struct {
+	ID              uuid.UUID `json:"id"`
+	TenantID        uuid.UUID `json:"tenant_id"`
+	Provider        string    `json:"provider"`
+	EncryptedConfig []byte    `json:"encrypted_config"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 type EmailProviderConfig struct {
 	ID              uuid.UUID `json:"id"`
 	TenantID        uuid.UUID `json:"tenant_id"`
 	Provider        string    `json:"provider"`
 	EncryptedConfig []byte    `json:"encrypted_config"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+type EmailTemplate struct {
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Subject   string    `json:"subject"`
+	Body      string    `json:"body"`
+	Html      string    `json:"html"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Job struct {
@@ -32,17 +64,6 @@ type Job struct {
 	StartedAt   *time.Time  `json:"started_at"`
 	CompletedAt *time.Time  `json:"completed_at"`
 	CreatedAt   time.Time   `json:"created_at"`
-}
-
-type EmailTemplate struct {
-	ID        uuid.UUID `json:"id"`
-	TenantID  uuid.UUID `json:"tenant_id"`
-	Name      string    `json:"name"`
-	Subject   string    `json:"subject"`
-	Body      string    `json:"body"`
-	Html      string    `json:"html"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type OauthProviderConfig struct {
