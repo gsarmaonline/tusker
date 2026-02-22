@@ -17,6 +17,7 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) *Han
 		tenantSvc: tenantSvc,
 		enc:       enc,
 	}
+	h.registerExecutors()
 
 	// Tenant provisioning (would be admin-gated in production)
 	r.POST("/tenants", h.CreateTenant)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,10 +23,11 @@ func init() {
 }
 
 // stubQuerier implements store.Querier for api handler tests.
-// Only CreateJob and GetJob are wired up; all others return zero values.
+// Set only the function fields exercised by each test; the rest return zero values.
 type stubQuerier struct {
-	createJobFn func(ctx context.Context, arg store.CreateJobParams) (store.Job, error)
-	getJobFn    func(ctx context.Context, arg store.GetJobParams) (store.Job, error)
+	createJobFn      func(ctx context.Context, arg store.CreateJobParams) (store.Job, error)
+	getJobFn         func(ctx context.Context, arg store.GetJobParams) (store.Job, error)
+	getTenantByIDFn  func(ctx context.Context, id uuid.UUID) (store.Tenant, error)
 }
 
 func (s *stubQuerier) CreateJob(ctx context.Context, arg store.CreateJobParams) (store.Job, error) {
@@ -65,6 +67,9 @@ func (s *stubQuerier) GetTenantByAPIKeyHash(ctx context.Context, apiKeyHash stri
 	return store.Tenant{}, nil
 }
 func (s *stubQuerier) GetTenantByID(ctx context.Context, id uuid.UUID) (store.Tenant, error) {
+	if s.getTenantByIDFn != nil {
+		return s.getTenantByIDFn(ctx, id)
+	}
 	return store.Tenant{}, nil
 }
 func (s *stubQuerier) UpsertEmailProviderConfig(ctx context.Context, arg store.UpsertEmailProviderConfigParams) (store.EmailProviderConfig, error) {
@@ -302,5 +307,55 @@ func TestGetJob_TenantScoped(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404 for cross-tenant access, got %d", w.Code)
+	}
+}
+
+// --- Executor registry tests ---
+
+func TestExecutor_JobTypes(t *testing.T) {
+	// Each executor must self-report the job type string that keys the registry.
+	h := &Handler{}
+	cases := []struct {
+		exec    Executor
+		wantKey string
+	}{
+		{&emailExecutor{h}, "email.send"},
+		{&smsExecutor{h}, "sms.send"},
+	}
+	for _, tc := range cases {
+		if got := tc.exec.JobType(); got != tc.wantKey {
+			t.Errorf("expected JobType()=%q, got %q", tc.wantKey, got)
+		}
+	}
+}
+
+func TestRegisterExecutors_PopulatesAllTypes(t *testing.T) {
+	h := &Handler{queries: &stubQuerier{}}
+	h.registerExecutors()
+
+	for _, jobType := range []string{"email.send", "sms.send"} {
+		if _, ok := h.executors[jobType]; !ok {
+			t.Errorf("executor for job type %q was not registered", jobType)
+		}
+	}
+}
+
+func TestExecuteJob_UnknownJobType_ReturnsError(t *testing.T) {
+	tenantID := uuid.New()
+	h := &Handler{
+		queries: &stubQuerier{
+			getTenantByIDFn: func(_ context.Context, id uuid.UUID) (store.Tenant, error) {
+				return store.Tenant{ID: id}, nil
+			},
+		},
+		executors: map[string]Executor{}, // empty registry
+	}
+
+	err := h.ExecuteJob(context.Background(), tenantID, "push.send", json.RawMessage(`{}`))
+	if err == nil {
+		t.Fatal("expected an error for unknown job type")
+	}
+	if !strings.Contains(err.Error(), "unknown job type") {
+		t.Errorf("expected 'unknown job type' in error, got: %v", err)
 	}
 }

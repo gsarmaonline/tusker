@@ -23,6 +23,7 @@ type Handler struct {
 	queries   store.Querier
 	tenantSvc *tenant.Service
 	enc       *crypto.Encryptor
+	executors map[string]Executor
 }
 
 // CreateTenant provisions a new tenant and returns the API key (shown once).
