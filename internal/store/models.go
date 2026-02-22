@@ -18,6 +18,17 @@ type EmailProviderConfig struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type EmailTemplate struct {
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Subject   string    `json:"subject"`
+	Body      string    `json:"body"`
+	Html      string    `json:"html"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type OauthProviderConfig struct {
 	ID                    uuid.UUID `json:"id"`
 	TenantID              uuid.UUID `json:"tenant_id"`
