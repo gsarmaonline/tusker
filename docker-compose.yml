@@ -1,22 +1,14 @@
 # ─── Tusker docker-compose ─────────────────────────────────────────────────────
 #
-# Phase 1: single binary — the `api` service embeds both the HTTP server and
-# the background job worker (goroutines inside the same process).
+# Default (MODE unset): `api` runs HTTP server + 5 embedded worker goroutines.
 #
-# Phase 2 (worker scale-out): to run workers as separate containers, add a
-# MODE env var (e.g. MODE=api / MODE=worker) and branch in main.go accordingly.
-# You can then replicate the `worker` service independently:
+# Worker scale-out: activate the `workers` profile and set MODE=api so the API
+# does not spawn its own goroutines, then scale worker containers independently:
 #
-#   worker:
-#     build: .
-#     environment:
-#       MODE: worker
-#       DATABASE_URL: ...
-#     deploy:
-#       replicas: 4        # scale horizontally without touching the API
-#     depends_on:
-#       migrate:
-#         condition: service_completed_successfully
+#   MODE=api docker compose --profile workers up --scale worker=4
+#
+# ClaimNextJob uses FOR UPDATE SKIP LOCKED so concurrent worker containers
+# will not double-process jobs.
 #
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -119,6 +111,10 @@ services:
       # Judge0 base URL — reachable within the Docker network.
       # Tenants can override this per-provider via POST /code/judge0/config.
       JUDGE0_URL: ${JUDGE0_URL:-http://judge0-server:2358}
+      # Set MODE=api when running dedicated worker containers so the API does
+      # not also spawn embedded worker goroutines.
+      # Leave unset (or omit) for the all-in-one default behaviour.
+      MODE: ${MODE:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,6 +122,25 @@ services:
         condition: service_completed_successfully
       judge0-server:
         condition: service_started
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MODE: worker
+      DATABASE_URL: postgres://tusker:tusker@postgres:5432/tusker?sslmode=disable
+      ROOT_ENCRYPTION_KEY: ${ROOT_ENCRYPTION_KEY:?ROOT_ENCRYPTION_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Workers are opt-in: `docker compose up --scale worker=4`
+    # By default, the api service runs its own embedded workers.
+    profiles:
+      - workers
 
 volumes:
   postgres_data:
