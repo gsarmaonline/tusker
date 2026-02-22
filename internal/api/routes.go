@@ -36,6 +36,11 @@ func RegisterRoutes(r *gin.Engine, db *pgxpool.Pool, enc *crypto.Encryptor) *Han
 		authed.POST("/sms/:provider/send", h.SendSMS)
 
 		authed.GET("/jobs/:id", h.GetJob)
+		
+    authed.POST("/email/templates", h.UpsertEmailTemplate)
+		authed.GET("/email/templates", h.ListEmailTemplates)
+		authed.DELETE("/email/templates/:name", h.DeleteEmailTemplate)
+		authed.POST("/email/:provider/send-template", h.SendEmailWithTemplate)
 	}
 
 	// Callback is called by the provider — no tenant auth header, tenant from state param

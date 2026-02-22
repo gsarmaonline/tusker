@@ -24,10 +24,14 @@ GET    /oauth/:provider/callback         Provider redirects here (Tusker-owned, 
 GET    /oauth/:provider/token?user_id=   Fetch a stored access token (auto-refreshed if expired)
 DELETE /oauth/:provider/token?user_id=   Revoke a stored token
 
+GET    /jobs/:id      Poll the status of a queued job (pending|running|completed|failed)
+
 POST   /email/:provider/config           Set email provider credentials (provider-specific JSON)
 POST   /email/:provider/send             Queue an email (async, returns 202 + job_id); add ?sync=true to send immediately
-
-GET    /jobs/:id                         Poll the status of a queued job (pending|running|completed|failed)
+POST   /email/templates                  Upsert a named email template
+GET    /email/templates                  List templates (custom + built-in defaults)
+DELETE /email/templates/:name            Delete a custom template (reverts to built-in default if one exists)
+POST   /email/:provider/send-template    Send email rendered from a named template + variables
 ```
 
 **Email config bodies by provider:**
@@ -46,6 +50,13 @@ Send request (`/email/:provider/send`):
 ```json
 { "to": ["alice@example.com"], "from": "noreply@myapp.com", "subject": "Hello", "body": "Hi there!", "html": false }
 ```
+
+Send-template request (`/email/:provider/send-template`):
+```json
+{ "template": "welcome", "to": ["alice@example.com"], "from": "noreply@myapp.com", "variables": { "ServiceName": "MyApp", "UserName": "Alice" } }
+```
+
+Built-in default templates (can be overridden per tenant): `welcome`, `login_alert`, `password_reset`, `magic_link`.
 
 **SMS**
 ```
