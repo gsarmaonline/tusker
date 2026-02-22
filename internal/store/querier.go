@@ -12,13 +12,17 @@ import (
 
 type Querier interface {
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
+	DeleteEmailTemplate(ctx context.Context, arg DeleteEmailTemplateParams) error
 	DeleteOAuthToken(ctx context.Context, arg DeleteOAuthTokenParams) error
 	GetEmailProviderConfig(ctx context.Context, arg GetEmailProviderConfigParams) (EmailProviderConfig, error)
+	GetEmailTemplate(ctx context.Context, arg GetEmailTemplateParams) (EmailTemplate, error)
 	GetOAuthToken(ctx context.Context, arg GetOAuthTokenParams) (OauthToken, error)
 	GetProviderConfig(ctx context.Context, arg GetProviderConfigParams) (OauthProviderConfig, error)
 	GetTenantByAPIKeyHash(ctx context.Context, apiKeyHash string) (Tenant, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
+	ListEmailTemplates(ctx context.Context, tenantID uuid.UUID) ([]EmailTemplate, error)
 	UpsertEmailProviderConfig(ctx context.Context, arg UpsertEmailProviderConfigParams) (EmailProviderConfig, error)
+	UpsertEmailTemplate(ctx context.Context, arg UpsertEmailTemplateParams) (EmailTemplate, error)
 	UpsertOAuthToken(ctx context.Context, arg UpsertOAuthTokenParams) (OauthToken, error)
 	UpsertProviderConfig(ctx context.Context, arg UpsertProviderConfigParams) (OauthProviderConfig, error)
 }

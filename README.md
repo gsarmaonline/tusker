@@ -26,6 +26,10 @@ DELETE /oauth/:provider/token?user_id=   Revoke a stored token
 
 POST   /email/:provider/config           Set email provider credentials (provider-specific JSON)
 POST   /email/:provider/send             Send an email via the configured provider
+POST   /email/templates                  Upsert a named email template
+GET    /email/templates                  List templates (custom + built-in defaults)
+DELETE /email/templates/:name            Delete a custom template (reverts to built-in default if one exists)
+POST   /email/:provider/send-template    Send email rendered from a named template + variables
 ```
 
 **Email config bodies by provider:**
@@ -44,6 +48,13 @@ Send request (`/email/:provider/send`):
 ```json
 { "to": ["alice@example.com"], "from": "noreply@myapp.com", "subject": "Hello", "body": "Hi there!", "html": false }
 ```
+
+Send-template request (`/email/:provider/send-template`):
+```json
+{ "template": "welcome", "to": ["alice@example.com"], "from": "noreply@myapp.com", "variables": { "ServiceName": "MyApp", "UserName": "Alice" } }
+```
+
+Built-in default templates (can be overridden per tenant): `welcome`, `login_alert`, `password_reset`, `magic_link`.
 
 **SMS**
 ```
