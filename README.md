@@ -15,6 +15,7 @@ Tired of setting up the same OAuth flow, email provider, or SMS integration for 
 
 ## API
 
+**OAuth**
 ```
 POST   /tenants                          Provision a tenant, get API key (shown once)
 POST   /oauth/:provider/config           Set OAuth provider credentials (client_id, client_secret)
@@ -42,6 +43,12 @@ SendGrid (`/email/sendgrid/config`):
 Send request (`/email/:provider/send`):
 ```json
 { "to": ["alice@example.com"], "from": "noreply@myapp.com", "subject": "Hello", "body": "Hi there!", "html": false }
+```
+
+**SMS**
+```
+POST   /sms/:provider/config             Set provider credentials (account_sid, auth_token)
+POST   /sms/:provider/send              Send an SMS message (from, to, body)
 ```
 
 All endpoints (except `/tenants` and `/oauth/:provider/callback`) require:
@@ -105,6 +112,8 @@ Runtime config lives in `/etc/tusker/tusker.env` on the droplet:
 **Email**
 - SMTP
 - SendGrid
+**SMS**
+- Twilio
 
 ## Security
 
